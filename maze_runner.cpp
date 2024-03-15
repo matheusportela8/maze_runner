@@ -2,6 +2,7 @@
 #include <stack>
 #include <iostream>
 #include <cstdlib>
+#include <unistd.h>
 
 // Matriz de char representnado o labirinto
 char** maze; // Voce também pode representar o labirinto como um vetor de vetores de char (vector<vector<char>>)
@@ -67,8 +68,9 @@ void print_maze() {
 bool walk(pos_t pos) {
 	pos_t new_pos;
 	pos_t valid;
-	system("cls || clear"); // Limpar a tela
+	system("clear || cls"); // Limpar a tela
     print_maze(); // Imprimir o labirinto
+	usleep(50000); // Atraso
 
 	//verifica se chegamos na saida
 	if(pos.i > 0 && maze[pos.i-1][pos.j] == 's') return true;
