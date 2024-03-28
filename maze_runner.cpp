@@ -1,8 +1,11 @@
 #include <stdio.h>
-#include <stack>
+#include <thread>
 #include <iostream>
 #include <cstdlib>
 #include <unistd.h>
+#include <chrono>
+
+using namespace std;
 
 // Matriz de char representnado o labirinto
 char** maze; // Voce também pode representar o labirinto como um vetor de vetores de char (vector<vector<char>>)
@@ -11,15 +14,15 @@ char** maze; // Voce também pode representar o labirinto como um vetor de vetor
 int num_rows;
 int num_cols;
 
+// Variavel que indica se a saída foi encontrada
+bool exit_found = false;
+
 // Representação de uma posição
 struct pos_t {
 	 int i;
 	 int j;
 };
 
-// Estrutura de dados contendo as próximas
-// posicões a serem exploradas no labirinto
-std::stack<pos_t> valid_positions;
 
 // Função que le o labirinto de um arquivo texto, carrega em 
 // memória e retorna a posição inicial
@@ -65,104 +68,82 @@ void print_maze() {
 
 // Função responsável pela navegação.
 // Recebe como entrada a posição initial e retorna um booleando indicando se a saída foi encontrada
-bool walk(pos_t pos) {
+void walk(pos_t pos) {
 	pos_t new_pos;
 	pos_t valid;
-	system("clear || cls"); // Limpar a tela
-    print_maze(); // Imprimir o labirinto
-	usleep(50000); // Atraso
+	while(!exit_found) {
+		this_thread::sleep_for(chrono::milliseconds(50));
+		//verifica se chegamos na saida
+		if(pos.i > 0 && maze[pos.i-1][pos.j] == 's') {
+			exit_found = true;
+		}
+		
+		if(pos.j < num_cols - 1 && maze[pos.i][pos.j+1] == 's') {
+			exit_found = true;
+		}
+		
+		if(pos.i < num_rows - 1 && maze[pos.i+1][pos.j] == 's') {
+			exit_found = true;
+		}
 
-	//verifica se chegamos na saida
-	if(pos.i > 0 && maze[pos.i-1][pos.j] == 's') return true;
-	
-	if(pos.j < num_cols - 1 && maze[pos.i][pos.j+1] == 's') return true;
-	
-	if(pos.i < num_rows - 1 && maze[pos.i+1][pos.j] == 's') return true;
-	if(pos.j > 0 && maze[pos.i][pos.j-1] == 's') return true;
+		if(pos.j > 0 && maze[pos.i][pos.j-1] == 's') {
+			exit_found = true;
+		}
 
-	//verifica se a posicao acima eh valida e, se sim, chama funcao walk e adiciona as outras posicoes validas na pilha
-	if(pos.i > 0 && maze[pos.i-1][pos.j] == 'x') {
-		maze[pos.i-1][pos.j] = '.';
-		new_pos.i = pos.i-1;
-		new_pos.j = pos.j;
+		//verifica se a posicao acima eh valida e, se sim, cria uma nova thread que chama a função walk para a nova posicao
+		if(pos.i > 0 && maze[pos.i-1][pos.j] == 'x') {
+			maze[pos.i-1][pos.j] = '.';
+			new_pos.i = pos.i-1;
+			new_pos.j = pos.j;
+			thread t1(walk, new_pos);
+			t1.detach();
+		}
+
+		//verifica se a posicao a direita eh valida e, se sim, cria uma nova thread que chama a função walk para a nova posicao
 		if(pos.j < num_cols - 1 && maze[pos.i][pos.j+1] == 'x') {
-			valid.i = pos.i;
-			valid.j = pos.j+1;
-			valid_positions.push(valid);
+			maze[pos.i][pos.j+1] = '.';
+			new_pos.i = pos.i;
+			new_pos.j = pos.j+1;
+			thread t2(walk, new_pos);
+			t2.detach();
 		}
+
+		//verifica se a posicao abaixo eh valida e, se sim, cria uma nova thread que chama a função walk para a nova posicao
 		if(pos.i < num_rows - 1 && maze[pos.i+1][pos.j] == 'x') {
-			valid.i = pos.i+1;
-			valid.j = pos.j;
-			valid_positions.push(valid);
+			maze[pos.i+1][pos.j] = '.';
+			new_pos.i = pos.i+1;
+			new_pos.j = pos.j;
+			thread t3(walk, new_pos);
+			t3.detach(); 
 		}
+
+		//verifica se a posicao ao lado esquerdo eh valida e, se sim, chama funcao walk
 		if(pos.j > 0 && maze[pos.i][pos.j-1] == 'x') {
-			valid.i = pos.i;
-			valid.j = pos.j-1;
-			valid_positions.push(valid);
+			maze[pos.i][pos.j-1] = '.';
+			new_pos.i = pos.i;
+			new_pos.j = pos.j-1;
+			thread t4(walk, new_pos);
+			t4.detach(); 
 		}
-		return walk(new_pos); 
 	}
-
-	//verifica se a posicao ao lado direito eh valida e, se sim, chama funcao walk e adiciona as outras posicoes validas na pilha
-	if(pos.j < num_cols - 1 && maze[pos.i][pos.j+1] == 'x') {
-		maze[pos.i][pos.j+1] = '.';
-		new_pos.i = pos.i;
-		new_pos.j = pos.j+1;
-		if(pos.i < num_rows - 1 && maze[pos.i+1][pos.j] == 'x') {
-			valid.i = pos.i+1;
-			valid.j = pos.j;
-			valid_positions.push(valid);
-		}
-		if(pos.j > 0 && maze[pos.i][pos.j-1] == 'x') {
-			valid.i = pos.i;
-			valid.j = pos.j-1;
-			valid_positions.push(valid);
-		}
-		return walk(new_pos); 
-	}
-
-	//verifica se a posicao abaixo eh valida e, se sim, chama funcao walk e adiciona as outras posicoes validas na pilha
-	if(pos.i < num_rows - 1 && maze[pos.i+1][pos.j] == 'x') {
-		maze[pos.i+1][pos.j] = '.';
-		new_pos.i = pos.i+1;
-		new_pos.j = pos.j;
-		if(pos.j > 0 && maze[pos.i][pos.j-1] == 'x') {
-			valid.i = pos.i;
-			valid.j = pos.j-1;
-			valid_positions.push(valid);
-		}
-		return walk(new_pos); 
-	}
-
-	//verifica se a posicao ao lado esquerdo eh valida e, se sim, chama funcao walk
-	if(pos.j > 0 && maze[pos.i][pos.j-1] == 'x') {
-		maze[pos.i][pos.j-1] = '.';
-		new_pos.i = pos.i;
-		new_pos.j = pos.j-1;
-		return walk(new_pos); 
-	}
-
-	//caso nao tenha nenhuma posicao valida nos vizinhos, verifica se a pilha tem posicoes salvas
-	if(!valid_positions.empty()) {
-		new_pos = valid_positions.top();
-		valid_positions.pop();
-		maze[new_pos.i][new_pos.j] = '.';
-		return walk(new_pos);
-	}
-
-	return false; //saida nao encontrada
 } 
 
 int main(int argc, char* argv[]) {
 	// carregar o labirinto com o nome do arquivo recebido como argumento
 	pos_t initial_pos = load_maze(argv[1]);
+
 	// chamar a função de navegação
-	bool exit_found = walk(initial_pos);
-	// Tratar o retorno (imprimir mensagem)
-	if (exit_found) {
-        printf("Saida encontrada!\n");
-    } else {
-        printf("Saida nao encontrada.\n");
-    }
+	thread t(walk, initial_pos);
+	t.detach();
+
+	while (!exit_found) {
+		print_maze();
+		this_thread::sleep_for(chrono::milliseconds(50));
+		system("clear || cls");
+	}
+
+	print_maze();
+	printf("Saida do labirinto encontrada\n");
+
 	return 0; 
 }
